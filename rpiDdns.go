@@ -166,14 +166,19 @@ func getIp() (string, error) {
 
 func main() {
 
+	errCount := 0
+
 	for {
 
 		fmt.Print("开始循环")
-		time.Sleep(LoopTime * time.Minute)
-
 		wwwIp, err := getIp()
 		if err != nil {
 			fmt.Println(err.Error())
+			errCount++
+			if errCount == 6{
+				errCount = 0
+				time.Sleep(LoopTime * time.Minute)
+			}
 			continue
 		}
 		fmt.Print(wwwIp)
@@ -181,6 +186,11 @@ func main() {
 		dRecords, err := getRpiRecordId()
 		if err != nil {
 			fmt.Println(err.Error())
+			errCount++
+			if errCount == 6{
+				errCount = 0
+				time.Sleep(LoopTime * time.Minute)
+			}
 			continue
 		}
 		for _, v := range dRecords.DRecords["Record"] {
@@ -188,7 +198,8 @@ func main() {
 				setRpiIp(v, wwwIp)
 			}
 		}
-
+		errCount = 0
+		time.Sleep(LoopTime * time.Minute)
 	}
 
 }
