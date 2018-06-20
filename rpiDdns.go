@@ -21,6 +21,7 @@ import (
 	//"io"
 	"io/ioutil"
 	"regexp"
+	"bytes"
 )
 
 //config
@@ -29,8 +30,19 @@ const (
 	AccessKeySecret = ""
 	Dns_Api         = "https://alidns.aliyuncs.com"
 	Ip_Api          = "https://www.taobao.com/help/getip.php"
+	Jianliao_Api	= ""
 	LoopTime        = 30 //分钟
 )
+
+func jianliaoPost(title, text, redirectUrl string){
+	req := "{\"authorName\":\"raspberry_device\", \"title\": \""+ title +"\", \"text\": \"" + text + "\", \"redirectUrl\": \"" + redirectUrl + "\"}"
+    req_new := bytes.NewBuffer([]byte(req))
+    request, _ := http.NewRequest("POST", Jianliao_Api, req_new)
+	request.Header.Set("Content-type", "application/json")
+	client := &http.Client{}
+	resp,_ := client.Do(request)
+	defer resp.Body.Close()
+}
 
 //生成请求body
 func createRequestBody(otherMap map[string]string) map[string]string {
@@ -135,19 +147,15 @@ func getRpiRecordId() (DomainRecords, error) {
 	return response, nil
 }
 
-func setRpiIp(r Record, wwwIp string) {
-	resp, err := getUrl(map[string]string{
+func setRpiIp(r Record, wwwIp string) error {
+	_, err := getUrl(map[string]string{
 		"Action":   "UpdateDomainRecord",
 		"RecordId": r.RecordId,
 		"RR":       r.RR,
 		"Type":     r.Type,
 		"Value":    wwwIp,
 	})
-	if err != nil {
-		fmt.Print(err.Error())
-		return
-	}
-	fmt.Println(string(resp))
+	return err
 }
 
 func getIp() (string, error) {
@@ -166,6 +174,9 @@ func getIp() (string, error) {
 
 func main() {
 
+	jianliaoPost("title", "text", "12445")
+	time.Sleep(LoopTime * time.Minute)
+
 	errCount := 0
 
 	for {
@@ -173,7 +184,7 @@ func main() {
 		fmt.Print("开始循环")
 		wwwIp, err := getIp()
 		if err != nil {
-			fmt.Println(err.Error())
+			jianliaoPost("getIp_error", err.Error(), "")
 			errCount++
 			if errCount == 6{
 				errCount = 0
@@ -185,7 +196,7 @@ func main() {
 
 		dRecords, err := getRpiRecordId()
 		if err != nil {
-			fmt.Println(err.Error())
+			jianliaoPost("getRpiRecordId_error", err.Error(), wwwIp)
 			errCount++
 			if errCount == 6{
 				errCount = 0
@@ -195,7 +206,11 @@ func main() {
 		}
 		for _, v := range dRecords.DRecords["Record"] {
 			if v.RR == "rpi" && v.Value != wwwIp {
-				setRpiIp(v, wwwIp)
+				err = setRpiIp(v, wwwIp)
+				if err != nil {
+					jianliaoPost("getRpiRecordId_error", err.Error(), wwwIp)
+					break
+				}
 			}
 		}
 		errCount = 0
