@@ -174,14 +174,13 @@ func getIp() (string, error) {
 
 func main() {
 
-	jianliaoPost("title", "text", "12445")
-	time.Sleep(LoopTime * time.Minute)
+	jianliaoPost("raspberry_start", "", "")
 
 	errCount := 0
 
 	for {
 
-		fmt.Print("开始循环")
+		fmt.Println("开始循环")
 		wwwIp, err := getIp()
 		if err != nil {
 			jianliaoPost("getIp_error", err.Error(), "")
@@ -192,7 +191,7 @@ func main() {
 			}
 			continue
 		}
-		fmt.Print(wwwIp)
+		fmt.Println(wwwIp)
 
 		dRecords, err := getRpiRecordId()
 		if err != nil {
