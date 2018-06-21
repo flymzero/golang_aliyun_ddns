@@ -19,9 +19,9 @@ import (
 	//"io/ioutil"
 	"encoding/json"
 	//"io"
+	"bytes"
 	"io/ioutil"
 	"regexp"
-	"bytes"
 )
 
 //config
@@ -30,17 +30,20 @@ const (
 	AccessKeySecret = ""
 	Dns_Api         = "https://alidns.aliyuncs.com"
 	Ip_Api          = "https://www.taobao.com/help/getip.php"
-	Jianliao_Api	= ""
+	BearyChat_Api   = ""
 	LoopTime        = 30 //分钟
 )
 
-func jianliaoPost(title, text, redirectUrl string){
-	req := "{\"authorName\":\"raspberry_device\", \"title\": \""+ title +"\", \"text\": \"" + text + "\", \"redirectUrl\": \"" + redirectUrl + "\"}"
-    req_new := bytes.NewBuffer([]byte(req))
-    request, _ := http.NewRequest("POST", Jianliao_Api, req_new)
+func bearyChatPost(text, title, url, atext, color string) {
+	req := make(map[string]interface{})
+	req["text"] = text
+	req["attachments"] = []interface{}{map[string]string{"title": title, "url": url, "text": atext, "color": color}}
+	bytesData, _ := json.Marshal(req)
+	req_new := bytes.NewReader(bytesData)
+	request, _ := http.NewRequest("POST", BearyChat_Api, req_new)
 	request.Header.Set("Content-type", "application/json")
 	client := &http.Client{}
-	resp,_ := client.Do(request)
+	resp, _ := client.Do(request)
 	defer resp.Body.Close()
 }
 
@@ -174,7 +177,7 @@ func getIp() (string, error) {
 
 func main() {
 
-	jianliaoPost("raspberry_start", "", "")
+	bearyChatPost("rpi info", "start", "", "", "#00FF00")
 
 	errCount := 0
 
@@ -183,9 +186,9 @@ func main() {
 		fmt.Println("开始循环")
 		wwwIp, err := getIp()
 		if err != nil {
-			jianliaoPost("getIp_error", err.Error(), "")
+			bearyChatPost("rpi info", "get ip error", "", err.Error(), "#DC143C")
 			errCount++
-			if errCount == 6{
+			if errCount == 6 {
 				errCount = 0
 				time.Sleep(LoopTime * time.Minute)
 			}
@@ -195,9 +198,9 @@ func main() {
 
 		dRecords, err := getRpiRecordId()
 		if err != nil {
-			jianliaoPost("getRpiRecordId_error", err.Error(), wwwIp)
+			bearyChatPost("rpi info", "get record id error", wwwIp, err.Error(), "#DC143C")
 			errCount++
-			if errCount == 6{
+			if errCount == 6 {
 				errCount = 0
 				time.Sleep(LoopTime * time.Minute)
 			}
@@ -207,8 +210,10 @@ func main() {
 			if v.RR == "rpi" && v.Value != wwwIp {
 				err = setRpiIp(v, wwwIp)
 				if err != nil {
-					jianliaoPost("getRpiRecordId_error", err.Error(), wwwIp)
+					bearyChatPost("rpi info", "set ip error", wwwIp, err.Error(), "#DC143C")
 					break
+				} else {
+					bearyChatPost("rpi info", "set ip success", wwwIp, "", "#00FF00")
 				}
 			}
 		}
