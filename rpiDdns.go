@@ -266,7 +266,7 @@ func main() {
 					bearyChatPost("set ip error", wwwIp, err.Error(), BCTypeErr)
 					break
 				} else {
-					bearyChatPost("set ip success", wwwIp, "", LogTypeSuc)
+					bearyChatPost("set ip success", wwwIp, "", BCTypeSuc)
 				}
 			}
 		}
