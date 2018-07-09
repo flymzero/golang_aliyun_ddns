@@ -9,19 +9,14 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
+	"time"
+	"crypto/hmac"
+	"crypto/sha1"
+	"encoding/base64"
+	"net/url"
+	"sort"
 )
-
-//"net/url"
-
-//"encoding/json"
-//"net/http"
-//"bytes"
-//"io/ioutil"
-//"strings"
-
-//"io/ioutil"
-
-//"io"
 
 var config = initConfig()
 var loger = initLog()
@@ -39,14 +34,27 @@ const (
 )
 
 type Config struct {
-	AccessKeyID     string `json:"AccessKeyId"`
+	AccessKeyID string `json:"AccessKeyId"`
 	AccessKeySecret string `json:"AccessKeySecret"`
-	BearyChatAPI    string `json:"BearyChatApi"`
-	DomainName      string `json:"DomainName"`
-	DNSAPI          string `json:"DnsApi"`
-	PublicIP        string `json:"PublicIp"`
-	LoopTime        int    `json:"LoopTime"`
-	LogFileName     string `json:"LogFileName"`
+	BearyChatAPI string `json:"BearyChatApi"`
+	RR string `json:"RR"`
+	DomainName string `json:"DomainName"`
+	DNSAPI string `json:"DnsApi"`
+	DescribeAction string `json:"DescribeAction"`
+	UpdateAction string `json:"UpdateAction"`
+	PublicIP string `json:"PublicIp"`
+	LoopTime int `json:"LoopTime"`
+	LogFileName string `json:"LogFileName"`
+}
+
+type DomainRecords struct {
+	DRecords map[string][]Record `json:"DomainRecords"`
+}
+type Record struct {
+	RR       string `json:"RR"`
+	Value    string `json:"Value"`
+	RecordId string `json:"RecordId"`
+	Type     string `json:"Type"`
 }
 
 // 配置文件
@@ -67,7 +75,7 @@ func initConfig() *Config {
 }
 
 // 获取公网ip
-func GetPulicIP() (string, error) {
+func getPulicIP() (string, error) {
 	res, err := http.Get(config.PublicIP)
 	if err != nil {
 		return "", err
@@ -96,49 +104,19 @@ func logPrintln(logType string, v ...interface{}) {
 	loger.Println(v)
 }
 
-func bearyChatPost(text, title, url, atext, color string) {
+func bearyChatPost(title, url, atext, color string) {
+	if color == BCTypeSuc{
+		logPrintln(LogTypeSuc, title, atext, url)
+	}else{
+		logPrintln(LogTypeErr, title, atext, url)
+	}
+	//
 	req := make(map[string]interface{})
 	req["text"] = "rpi info"
 	req["attachments"] = []interface{}{map[string]string{"title": title, "url": url, "text": atext + "\n" + url, "color": color}}
 	bytesData, _ := json.Marshal(req)
 	req_new := bytes.NewReader(bytesData)
 	request, _ := http.NewRequest("POST", config.BearyChatAPI, req_new)
-	request.Header.Set("Content-type", "application/json")
-	client := &http.Client{}
-	resp, _ := client.Do(request)
-	defer resp.Body.Close()
-}
-
-func main() {
-	fmt.Println(GetPulicIP())
-	fmt.Println(config)
-	loger.Println("xxx")
-	logPrintln(logTypeInfo, "000")
-}
-
-/*
-
-func test() {
-	sdk.NewClientWithAccessKey()
-}
-
-//config
-const (
-	AccessKeyId     = ""
-	AccessKeySecret = ""
-	Dns_Api         = "https://alidns.aliyuncs.com"
-	Ip_Api          = "https://www.taobao.com/help/getip.php"
-	BearyChat_Api   = ""
-	LoopTime        = 30 //分钟
-)
-
-func bearyChatPost(text, title, url, atext, color string) {
-	req := make(map[string]interface{})
-	req["text"] = text
-	req["attachments"] = []interface{}{map[string]string{"title": title, "url": url, "text": atext, "color": color}}
-	bytesData, _ := json.Marshal(req)
-	req_new := bytes.NewReader(bytesData)
-	request, _ := http.NewRequest("POST", BearyChat_Api, req_new)
 	request.Header.Set("Content-type", "application/json")
 	client := &http.Client{}
 	resp, _ := client.Do(request)
@@ -153,7 +131,7 @@ func createRequestBody(otherMap map[string]string) map[string]string {
 	var bodyMap = map[string]string{
 		"Format":           "JSON",
 		"Version":          "2015-01-09",
-		"AccessKeyId":      AccessKeyId,
+		"AccessKeyId":      config.AccessKeyID,
 		"SignatureMethod":  "HMAC-SHA1",
 		"SignatureNonce":   strconv.FormatInt(curTime.UTC().Unix(), 10),
 		"SignatureVersion": "1.0",
@@ -188,9 +166,8 @@ func signBody(body map[string]string) string {
 	}
 	//urlencode
 	encodeStr := "GET&" + url.QueryEscape("/") + "&" + url.QueryEscape(str)
-	//fmt.Println(encodeStr)
 	//hmac
-	key := []byte(AccessKeySecret + "&")
+	key := []byte(config.AccessKeySecret + "&")
 	mac := hmac.New(sha1.New, key)
 	mac.Write([]byte(encodeStr))
 	hmacStr := mac.Sum(nil)
@@ -206,7 +183,7 @@ func getUrl(bodyMap map[string]string) ([]byte, error) {
 	for k, v := range bm {
 		urlStr += "&" + k + "=" + v
 	}
-	urlStr = Dns_Api + "?" + urlStr[1:]
+	urlStr = config.DNSAPI + "?" + urlStr[1:]
 	fmt.Println(urlStr)
 	//
 	resp, err := http.Get(urlStr)
@@ -221,20 +198,10 @@ func getUrl(bodyMap map[string]string) ([]byte, error) {
 	return body, nil
 }
 
-type DomainRecords struct {
-	DRecords map[string][]Record `json:"DomainRecords"`
-}
-type Record struct {
-	RR       string `json:"RR"`
-	Value    string `json:"Value"`
-	RecordId string `json:"RecordId"`
-	Type     string `json:"Type"`
-}
-
 func getRpiRecordId() (DomainRecords, error) {
 	resp, err := getUrl(map[string]string{
-		"Action":     "DescribeDomainRecords",
-		"DomainName": "flyzero.cn",
+		"Action":    config.DescribeAction,
+		"DomainName": config.DomainName,
 	})
 	var response DomainRecords
 	if err != nil {
@@ -250,7 +217,7 @@ func getRpiRecordId() (DomainRecords, error) {
 
 func setRpiIp(r Record, wwwIp string) error {
 	_, err := getUrl(map[string]string{
-		"Action":   "UpdateDomainRecord",
+		"Action":   config.UpdateAction,
 		"RecordId": r.RecordId,
 		"RR":       r.RR,
 		"Type":     r.Type,
@@ -259,65 +226,51 @@ func setRpiIp(r Record, wwwIp string) error {
 	return err
 }
 
-func getIp() (string, error) {
-	res, err := http.Get(Ip_Api)
-	if err != nil {
-		return "", err
-	}
-	defer res.Body.Close()
-	result, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return "", err
-	}
-	reg := regexp.MustCompile(`\d+\.\d+\.\d+\.\d+`)
-	return reg.FindString(string(result)), nil
-}
-
 func main() {
 
-	bearyChatPost("rpi info", "start", "", "", "#00FF00")
-
+	bearyChatPost("start", "", "", BCTypeSuc)
+	
 	errCount := 0
-
+	//
 	for {
-
-		fmt.Println("开始循环")
-		wwwIp, err := getIp()
+		wwwIp, err := getPulicIP()
 		if err != nil {
-			bearyChatPost("rpi info", "get ip error", "", err.Error(), "#DC143C")
+			bearyChatPost("get publicIp error", "", err.Error(), BCTypeErr)
 			errCount++
+			time.Sleep(time.Duration(1) * time.Minute)
 			if errCount == 6 {
 				errCount = 0
-				time.Sleep(LoopTime * time.Minute)
+				time.Sleep(time.Duration(config.LoopTime) * time.Minute)
 			}
 			continue
 		}
-		fmt.Println(wwwIp)
-
+		// logPrintln(logTypeInfo, "get publicIp", wwwIp)
+		//
 		dRecords, err := getRpiRecordId()
 		if err != nil {
-			bearyChatPost("rpi info", "get record id error", wwwIp, err.Error(), "#DC143C")
+			bearyChatPost("get record id error", wwwIp, err.Error(), BCTypeErr)
 			errCount++
+			time.Sleep(time.Duration(1) * time.Minute)
 			if errCount == 6 {
 				errCount = 0
-				time.Sleep(LoopTime * time.Minute)
+				time.Sleep(time.Duration(config.LoopTime) * time.Minute)
 			}
 			continue
 		}
 		for _, v := range dRecords.DRecords["Record"] {
-			if v.RR == "rpi" && v.Value != wwwIp {
+			if v.RR == config.RR && v.Value != wwwIp {
 				err = setRpiIp(v, wwwIp)
 				if err != nil {
-					bearyChatPost("rpi info", "set ip error", wwwIp, err.Error(), "#DC143C")
+					bearyChatPost("set ip error", wwwIp, err.Error(), BCTypeErr)
 					break
 				} else {
-					bearyChatPost("rpi info", "set ip success", wwwIp, "", "#00FF00")
+					bearyChatPost("set ip success", wwwIp, "", LogTypeSuc)
 				}
 			}
 		}
 		errCount = 0
-		time.Sleep(LoopTime * time.Minute)
+		time.Sleep(time.Duration(config.LoopTime) * time.Minute)
 	}
 
 }
-*/
+

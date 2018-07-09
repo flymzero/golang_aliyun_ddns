@@ -2,8 +2,11 @@
     "AccessKeyId"     : "",
     "AccessKeySecret" : "",
     "BearyChatApi"    : "",
+    "RR"              : "rpi",
     "DomainName"      : "flyzero.cn",
-	"DnsApi"          : "https://alidns.aliyuncs.com",
+    "DnsApi"          : "https://alidns.aliyuncs.com",
+    "DescribeAction"  : "DescribeDomainRecords",
+    "UpdateAction"    : "UpdateDomainRecord",
 	"PublicIp"        : "https://www.taobao.com/help/getip.php",
     "LoopTime"        : 30,
     "LogFileName"     : "log.log"
