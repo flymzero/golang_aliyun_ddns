@@ -1,28 +1,107 @@
 package main
 
 import (
-	"fmt"
-	"strconv"
-	"time"
-	//"net/url"
-	"crypto/hmac"
-	"crypto/sha1"
-	"encoding/base64"
-	"net/url"
-	"sort"
-	//"encoding/json"
-	//"net/http"
-	//"bytes"
-	//"io/ioutil"
-	//"strings"
-	"net/http"
-	//"io/ioutil"
 	"encoding/json"
-	//"io"
-	"bytes"
+	"fmt"
 	"io/ioutil"
+	"log"
+	"net/http"
+	"os"
 	"regexp"
 )
+
+//"net/url"
+
+//"encoding/json"
+//"net/http"
+//"bytes"
+//"io/ioutil"
+//"strings"
+
+//"io/ioutil"
+
+//"io"
+
+var config = initConfig()
+var loger = initLog()
+
+const (
+	logTypeInfo = "[Info] "
+	logTypeWarn = "[Warn] "
+	LogTypeErr  = "[Err] "
+	LogTypeSuc  = "[Suc] "
+)
+
+type Config struct {
+	AccessKeyID     string `json:"AccessKeyId"`
+	AccessKeySecret string `json:"AccessKeySecret"`
+	BearyChatAPI    string `json:"BearyChatApi"`
+	DomainName      string `json:"DomainName"`
+	DNSAPI          string `json:"DnsApi"`
+	PublicIP        string `json:"PublicIp"`
+	LoopTime        int    `json:"LoopTime"`
+	LogFileName     string `json:"LogFileName"`
+}
+
+// 配置文件
+func initConfig() *Config {
+	data, err := ioutil.ReadFile("config.json")
+	if err != nil {
+		log.Fatalln(err.Error())
+		return nil
+	}
+
+	c := &Config{}
+	err = json.Unmarshal(data, c)
+	if err != nil {
+		log.Fatalln(err.Error())
+		return nil
+	}
+	return c
+}
+
+// 获取公网ip
+func GetPulicIP() (string, error) {
+	res, err := http.Get(config.PublicIP)
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+	result, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return "", err
+	}
+	reg := regexp.MustCompile(`\d+\.\d+\.\d+\.\d+`)
+	return reg.FindString(string(result)), nil
+}
+
+// 日志输出
+func initLog() *log.Logger {
+	file, err := os.OpenFile(config.LogFileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+	if err != nil {
+		log.Fatalln("fail to create log file!")
+	}
+	logger := log.New(file, "", log.Ldate|log.Ltime|log.Lshortfile)
+	return logger
+}
+
+func logPrintln(logType string, v ...interface{}) {
+	loger.SetPrefix(logType)
+	loger.Println(v)
+}
+
+func main() {
+	fmt.Println(GetPulicIP())
+	fmt.Println(config)
+	loger.Println("xxx")
+	logPrintln(logTypeInfo, "000")
+}
+
+/*
+
+func test() {
+	sdk.NewClientWithAccessKey()
+}
 
 //config
 const (
@@ -222,3 +301,4 @@ func main() {
 	}
 
 }
+*/

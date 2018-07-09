@@ -1,0 +1,10 @@
+{
+    "AccessKeyId"     : "",
+    "AccessKeySecret" : "",
+    "BearyChatApi"    : "",
+    "DomainName"      : "flyzero.cn",
+	"DnsApi"          : "https://alidns.aliyuncs.com",
+	"PublicIp"        : "https://www.taobao.com/help/getip.php",
+    "LoopTime"        : 30,
+    "LogFileName"     : "log.log"
+}
