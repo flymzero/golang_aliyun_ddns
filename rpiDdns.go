@@ -119,8 +119,10 @@ func bearyChatPost(title, url, atext, color string) {
 	request, _ := http.NewRequest("POST", config.BearyChatAPI, req_new)
 	request.Header.Set("Content-type", "application/json")
 	client := &http.Client{}
-	resp, _ := client.Do(request)
-	defer resp.Body.Close()
+	resp, err := client.Do(request)
+	if err == nil{
+		defer resp.Body.Close()
+	}
 }
 
 //生成请求body
