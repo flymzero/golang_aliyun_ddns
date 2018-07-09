@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -30,6 +31,11 @@ const (
 	logTypeWarn = "[Warn] "
 	LogTypeErr  = "[Err] "
 	LogTypeSuc  = "[Suc] "
+)
+
+const (
+	BCTypeSuc = "#00FF00"
+	BCTypeErr = "#DC143C"
 )
 
 type Config struct {
@@ -88,6 +94,19 @@ func initLog() *log.Logger {
 func logPrintln(logType string, v ...interface{}) {
 	loger.SetPrefix(logType)
 	loger.Println(v)
+}
+
+func bearyChatPost(text, title, url, atext, color string) {
+	req := make(map[string]interface{})
+	req["text"] = "rpi info"
+	req["attachments"] = []interface{}{map[string]string{"title": title, "url": url, "text": atext + "\n" + url, "color": color}}
+	bytesData, _ := json.Marshal(req)
+	req_new := bytes.NewReader(bytesData)
+	request, _ := http.NewRequest("POST", config.BearyChatAPI, req_new)
+	request.Header.Set("Content-type", "application/json")
+	client := &http.Client{}
+	resp, _ := client.Do(request)
+	defer resp.Body.Close()
 }
 
 func main() {
